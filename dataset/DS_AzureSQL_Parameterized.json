@@ -3,13 +3,36 @@
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "LS_AzureSQL_Retail",
-			"type": "LinkedServiceReference"
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"dbName": {
+					"value": "@dataset().dbName",
+					"type": "Expression"
+				},
+				"serverName": {
+					"value": "@dataset().serverName",
+					"type": "Expression"
+				},
+				"userName": {
+					"value": "@dataset().userName",
+					"type": "Expression"
+				}
+			}
 		},
 		"parameters": {
 			"schemaName": {
 				"type": "string"
 			},
 			"tableName": {
+				"type": "string"
+			},
+			"dbName": {
+				"type": "string"
+			},
+			"serverName": {
+				"type": "string"
+			},
+			"userName": {
 				"type": "string"
 			}
 		},

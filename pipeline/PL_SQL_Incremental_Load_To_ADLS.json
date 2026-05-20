@@ -1,0 +1,260 @@
+{
+	"name": "PL_SQL_Incremental_Load_To_ADLS",
+	"properties": {
+		"activities": [
+			{
+				"name": "Set variable1",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "oldTimeStamp",
+					"value": {
+						"value": "@activity('Lookup1').output.firstRow.last_watermark_value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat('SELECT last_watermark_value FROM dbo.pipeline_watermark WHERE source_table_name = \r\n''',\r\npipeline().parameters.sourceTableName,\r\n'''')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_AzureSQL_Parameterized",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": {
+								"value": "@pipeline().parameters.sourceSchemaName",
+								"type": "Expression"
+							},
+							"tableName": {
+								"value": "@pipeline().parameters.sourceTableName",
+								"type": "Expression"
+							},
+							"dbName": {
+								"value": "@pipeline().parameters.sourceDbName",
+								"type": "Expression"
+							},
+							"serverName": {
+								"value": "@pipeline().parameters.sourceServerName",
+								"type": "Expression"
+							},
+							"userName": {
+								"value": "@pipeline().parameters.sourceUserName",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			},
+			{
+				"name": "Set variable2",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup2",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "newTimeStamp",
+					"value": {
+						"value": "@activity('Lookup2').output.firstRow.new_watermark_value",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Set variable2",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n    'select * from \n    ''',\n    pipeline().parameters.sourceTableName,\n    'where last_watermark_value > ',\n    variables('oldTimeStamp'),\n    'and latest_updated_at < ',\n    variables('newTimeStamp'),\n    ''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_AzureSQL_Parameterized",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": {
+								"value": "@pipeline().parameters.sourceSchemaName",
+								"type": "Expression"
+							},
+							"tableName": {
+								"value": "@pipeline().parameters.sourceTableName",
+								"type": "Expression"
+							},
+							"dbName": {
+								"value": "@pipeline().parameters.sourceDbName",
+								"type": "Expression"
+							},
+							"serverName": {
+								"value": "@pipeline().parameters.sourceServerName",
+								"type": "Expression"
+							},
+							"userName": {
+								"value": "@pipeline().parameters.sourceUserName",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Lookup2",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set variable1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n    'SELECT MAX(last_updated_at) AS new_watermark_value\nFROM \n''',\npipeline().parameters.sourceTableName,\n''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DS_AzureSQL_Parameterized",
+						"type": "DatasetReference",
+						"parameters": {
+							"schemaName": {
+								"value": "@pipeline().parameters.sourceSchemaName",
+								"type": "Expression"
+							},
+							"tableName": {
+								"value": "@pipeline().parameters.sourceTableName",
+								"type": "Expression"
+							},
+							"dbName": {
+								"value": "@pipeline().parameters.sourceDbName",
+								"type": "Expression"
+							},
+							"serverName": {
+								"value": "@pipeline().parameters.sourceServerName",
+								"type": "Expression"
+							},
+							"userName": {
+								"value": "@pipeline().parameters.sourceUserName",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"sourceSchemaName": {
+				"type": "string"
+			},
+			"sourceTableName": {
+				"type": "string"
+			},
+			"watermarkColumn": {
+				"type": "string"
+			},
+			"targetContainer": {
+				"type": "string"
+			},
+			"targetFolderPath": {
+				"type": "string"
+			},
+			"targetFileName": {
+				"type": "string"
+			},
+			"sourceDbName": {
+				"type": "string"
+			},
+			"sourceServerName": {
+				"type": "string"
+			},
+			"sourceUserName": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"oldTimeStamp": {
+				"type": "String"
+			},
+			"newTimeStamp": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
